@@ -1,0 +1,383 @@
+package com.example.apitest;
+
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.constraintlayout.widget.ConstraintLayout;
+import androidx.core.app.ActivityCompat;
+
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.util.Log;
+import android.view.Gravity;
+import android.view.View;
+import android.widget.Adapter;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemSelectedListener;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.Spinner;
+
+import com.anychart.AnyChart;
+import com.anychart.AnyChartView;
+import com.anychart.chart.common.dataentry.DataEntry;
+import com.anychart.chart.common.dataentry.ValueDataEntry;
+import com.anychart.charts.Pie;
+
+import java.text.Format;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class Analytics extends Details {
+    private EditText startDateEditText;
+    private EditText endDateEditText;
+    private Spinner spinner1;
+    private Spinner spinner2;
+    private Button chooseCalendarsButton;
+    private LinearLayout linearLayout;
+    private Button finishedBtn;
+    private ConstraintLayout constraintLayout;
+
+    public int selection;
+
+    public List<DataEntry> dataList;
+    //private ArrayList<String> allCals = allCalendars();
+
+    public ArrayList<String> selectedCals = new ArrayList<>();
+    public int calKey;
+    public long avg1;
+    public long startDate;
+    public long endDate;
+
+
+
+    public void addCals(String cal) {
+        selectedCals.add(cal);
+    }
+
+    public void dataSetter(List<DataEntry> data) {
+        dataList = data;
+    }
+
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_analytics);
+        SimpleDateFormat Format = new SimpleDateFormat("dd/MM/yyy");
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_CALENDAR) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(Analytics.this, new String[] {Manifest.permission.READ_CALENDAR}, 100);
+
+        }
+        final ArrayList<String> allCals = allCalendars();
+        startDateEditText = findViewById(R.id.start_date);
+        endDateEditText = findViewById(R.id.end_date);
+        spinner1 = findViewById(R.id.spinner1);
+        spinner2 = findViewById(R.id.spinner2);
+        chooseCalendarsButton = findViewById(R.id.choose_calendars);
+        linearLayout = findViewById(R.id.linear_layout);
+        finishedBtn = findViewById(R.id.finished);
+        constraintLayout = findViewById(R.id.constrain_layout);
+
+
+        selectedCals.addAll(allCals);
+        calKey = 2;
+        avg1 = 86400000;
+        //
+        //contents of spinner1 and spinner2
+        //
+        final String[] analyticsOptions = {"Total Time", "Total Occurrences", "Average Time", "Average Occurrences"};
+        final String[] averageOptions = {"Per Day", "Per Week", "Per Month"};
+        //
+        //sets defaults for editTexts dates
+        //
+        final Calendar cal = Calendar.getInstance();
+        endDateEditText.setText(Format.format(cal.getTimeInMillis()));
+        cal.add(Calendar.MONTH,  -1);
+        startDateEditText.setText(Format.format(cal.getTimeInMillis()));
+        startDate = convertDateToMilli(startDateEditText.getText().toString());
+        endDate = convertDateToMilli(endDateEditText.getText().toString());
+
+        startDateEditText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+                startDate = convertDateToMilli(startDateEditText.getText().toString());
+                Log.d("MATH", "" + "" + startDate);
+                calculatorCalculation();
+            }
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override
+            public void afterTextChanged(Editable s) {}
+        });
+
+        endDateEditText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+                endDate = convertDateToMilli(endDateEditText.getText().toString());
+                Log.d("MATH", "" + "" + startDate);
+                calculatorCalculation();
+            }
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override
+            public void afterTextChanged(Editable s) {}
+        });
+
+        //Log.d("Math", )
+        //HashMap<String, Double> map = getOccurrences(convertDateToMilli(startDate), convertDateToMilli(endDate));
+
+        //ArrayList<String> colorArray = new ArrayList<String>();
+        //code for pie chart
+
+        //set color to color of respective calendar
+        //HashMap<String, String> color = getColorArray(convertDateToMilli(startDate), convertDateToMilli(endDate));
+/*
+        for(Map.Entry<String, String> entry: color.entrySet()) {
+            for(String calendar: selectedCals) {
+                if (entry.getKey().equals(calendar)) {
+                    colorArray.add(entry.getValue());
+                }
+            }
+        }
+        String[] finalColorList = getStringArray(colorArray);
+        pie.palette(finalColorList);
+
+ */
+
+
+
+        //
+        //makes calendar picker appear when you click editText
+        //
+        MyEditTextDatePicker startDateCalPicker = new MyEditTextDatePicker(this, R.id.start_date);
+        MyEditTextDatePicker endDateCalPicker = new MyEditTextDatePicker(this, R.id.end_date);
+        //
+        //sets content for first spinner
+        //
+        ArrayAdapter adapter1 = new ArrayAdapter<>(
+                this,
+                android.R.layout.simple_spinner_dropdown_item,
+                analyticsOptions);
+        //
+        //sets content of second spinner
+        //
+        ArrayAdapter adapter2 = new ArrayAdapter<>(
+                this,
+                android.R.layout.simple_spinner_dropdown_item,
+                averageOptions);
+        spinner1.setAdapter(adapter1);
+        spinner2.setAdapter(adapter2);
+        //
+        //checks contents of of first spinner
+        //
+        OnItemSelectedListener spinnerListener = new OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                switch (position){
+                    case 0:
+                        Log.d("JACHSHIT", "This?");
+                        //calKey = 1;
+                        spinner2.setVisibility(View.INVISIBLE);
+                        calculatorCalculation();
+                        break;
+                    case 1:
+                        calKey = 2;
+                        spinner2.setVisibility(View.INVISIBLE);
+                        calculatorCalculation();
+                        break;
+                    case 2:
+                        calKey = 3;
+                        spinner2.setVisibility(View.VISIBLE);
+                        calculatorCalculation();
+                        break;
+                    case 3:
+                        calKey = 4;
+                        spinner2.setVisibility(View.VISIBLE);
+                        calculatorCalculation();
+                        break;
+                }
+            }
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        };
+        //
+        //checks contents of of second spinner
+        //
+        OnItemSelectedListener spinner2Listener = new OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                switch (position) {
+                    case 0:
+                        avg1 = 86400000;
+                        calculatorCalculation();
+                        break;
+                    case 1:
+                        avg1 = 604800000;
+                        calculatorCalculation();
+                    case 2:
+                        avg1 = 18144000000L;
+                        calculatorCalculation();
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+
+            }
+        };
+        spinner2.setOnItemSelectedListener(spinner2Listener);
+        spinner1.setOnItemSelectedListener(spinnerListener);
+
+        chooseCalendarsButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                constraintLayout.setVisibility(View.VISIBLE);
+            }
+        });
+        finishedBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                constraintLayout.setVisibility(View.INVISIBLE);
+                calculatorCalculation();
+            }
+        });
+
+        final LinearLayout.LayoutParams lparams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+
+        for (int i = 0; i < allCals.size(); i++) {
+            CheckBox ch = new CheckBox(this);
+            ch.setText(allCals.get(i));
+            ch.setLayoutParams(lparams);
+            ch.setGravity(Gravity.CENTER);
+            ch.setChecked(true);
+            linearLayout.addView(ch);
+            linearLayout.setBackgroundColor(Color.BLACK);
+            final int index = i;
+
+            final CompoundButton.OnCheckedChangeListener checkboxListener = new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                    Log.d("Convert", "HERE?");
+                    if (isChecked) {
+                        Log.d("Convert", "MAYBEHERE??");
+                        addCals(allCals.get(index));
+                    } else {
+                        selectedCals.remove(allCals.get(index));
+                    }
+
+                }
+            };
+            ch.setOnCheckedChangeListener(checkboxListener);
+        }
+    }
+
+    public void calculatorCalculation() {
+
+        Log.d("CALCULATION", "" + calKey);
+        for (String cal: selectedCals){
+            //Log.d("CALCULATION", "" + cal);
+        }
+        Log.d("MATH1", "" + "" + startDate + " : " + endDate);
+        switch (calKey) {
+            case 1:
+                Log.d("CALCULATION", "Test");
+                HashMap<String, Double> map = getTotalTime(startDate, endDate);
+                List<DataEntry> data1 = new ArrayList<>();
+                for (Map.Entry<String, Double> entry : map.entrySet()) {
+                    for (String calendar : selectedCals) {
+                        Log.d("CALCULATION", "" + entry.getKey());
+                        if (entry.getKey().equals(calendar)) {
+                            Log.d("CALCULATION", "" + entry.getKey());
+                            data1.add(new ValueDataEntry(entry.getKey(), entry.getValue()));
+                        }
+                    }
+                }
+                dataSetter(data1);
+                
+                break;
+            case 2:
+                HashMap<String, Double> map2 = getOccurrences(startDate, endDate);
+                List<DataEntry> data2 = new ArrayList<>();
+                for (Map.Entry<String, Double> entry : map2.entrySet()) {
+                    for (String calendar : selectedCals) {
+                        if (entry.getKey().equals(calendar)) {
+                            data2.add(new ValueDataEntry(entry.getKey(), entry.getValue()));
+                        }
+                    }
+                }
+                dataSetter(data2);
+
+                break;
+            case 3:
+                HashMap<String, Double> map3 = getTimeAverage(startDate, endDate, avg1);
+                List<DataEntry> data3 = new ArrayList<>();
+                for (Map.Entry<String, Double> entry : map3.entrySet()) {
+                    for (String calendar : selectedCals) {
+                        if (entry.getKey().equals(calendar)) {
+                            data3.add(new ValueDataEntry(entry.getKey(), entry.getValue()));
+                        }
+                    }
+                }
+                dataSetter(data3);
+
+                break;
+            case 4:
+                HashMap<String, Double> map4 = getOccurrenceAverage(startDate, endDate, avg1);
+                List<DataEntry> data4 = new ArrayList<>();
+                for (Map.Entry<String, Double> entry : map4.entrySet()) {
+                    for (String calendar : selectedCals) {
+                        if (entry.getKey().equals(calendar)) {
+                            data4.add(new ValueDataEntry(entry.getKey(), entry.getValue()));
+                        }
+                    }
+                }
+                dataSetter(data4);
+
+                break;
+        }
+        drawPie();
+    }
+
+    public void drawPie(){
+        Pie pie = AnyChart.pie();
+        for (DataEntry entry: dataList) {
+            Log.d("HELPME", " " + entry);
+        }
+        AnyChartView anyChartView = findViewById(R.id.any_chart1);
+        //pie.;
+        pie.data(dataList);
+        //pie.parentBounds();
+        anyChartView.setChart(pie);
+    }
+
+    public void drawPie1(){
+        Pie pie1 = AnyChart.pie();
+        for (DataEntry entry: dataList) {
+            Log.d("HELPME", " " + entry);
+        }
+        AnyChartView anyChartView1 = findViewById(R.id.any_chart1);
+        //pie.;
+        pie1.data(dataList);
+        //pie.parentBounds();
+        anyChartView1.setChart(pie1);
+    }
+
+
+
+}
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
